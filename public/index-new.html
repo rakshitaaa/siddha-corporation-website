@@ -214,6 +214,132 @@
 
     </section>
 
+    <!-- =========================
+        GEOGRAPHIC DISTRIBUTION
+    ========================= -->
+    <section class="geo-distribution" id="geography">
+
+        <div class="container geo-grid">
+
+            <!-- LEFT CONTENT -->
+            <div class="geo-content" data-geo-animate>
+
+                <span class="geo-badge">Our Distribution Footprint in Rajasthan</span>
+
+                <h2 class="geo-title">
+                    Geographic <br>
+                    <span>Distribution</span>
+                </h2>
+
+                <p class="geo-desc">
+                    With strong roots in Rajasthan, Siddha Corporation continues to expand
+                    its footprint across neighboring states and pan-India markets, powered
+                    by trust, scale, and operational excellence.
+                </p>
+
+                <ul class="geo-points">
+                    <li>Established in 2000 with over two decades of distribution legacy</li>
+                    <li>Adaptive, scalable, and market-driven operations</li>
+                    <li>Deep penetration across urban & semi-urban markets</li>
+                </ul>
+
+                <!-- STATS -->
+                <div class="geo-stats">
+
+                    <div class="geo-stat-card">
+                        <span class="geo-number count-number" data-target="250">0</span>
+                        <span class="geo-label">+ Distributors</span>
+                    </div>
+
+                    <div class="geo-stat-card light">
+                        <span class="geo-number count-number" data-target="1500">0</span>
+                        <span class="geo-label">+ Retail & DTR Outlets</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- RIGHT MAP -->
+            <div class="geo-map-wrapper" data-geo-animate>
+                <img src="images/rajasthan-map.png" alt="Rajasthan Distribution Map">
+            </div>
+
+        </div>
+
+        <!-- Decorative Blobs -->
+        <div class="geo-blob blob-left"></div>
+        <div class="geo-blob blob-right"></div>
+
+    </section>
+
+        <!-- =========================
+         Brand Ecosystem
+    ========================= -->
+<section class="brand-ecosystem">
+  <div class="container">
+    <h2 class="section-title">Our Brand Ecosystem</h2>
+    <p class="section-subtitle">
+      We power trusted healthcare and consumer brands through strong distribution
+      and execution at scale.
+    </p>
+
+    <!-- Distribution -->
+    <div class="brand-block">
+      <h3 class="brand-heading">Distribution Partnerships</h3>
+      <p class="brand-desc">
+        Long-standing collaborations with leading pharmaceutical and healthcare
+        brands built on trust, compliance, and performance.
+      </p>
+
+      <div class="brand-grid">
+        <div class="brand-card">
+          <img src="images/abbott.png" alt="Abbott" />
+        </div>
+        <div class="brand-card">
+          <img src="images/gsk.png" alt="GSK" />
+        </div>
+        <div class="brand-card">
+          <img src="images/loreal.png" alt="L’Oréal" />
+        </div>
+        <div class="brand-card">
+          <img src="images/akzonobel.png" alt="AkzoNobel" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Retail -->
+    <div class="brand-block retail">
+      <h3 class="brand-heading">Retail Footprint</h3>
+      <p class="brand-desc">
+        A strong retail presence that demonstrates our reach, execution capability,
+        and market adaptability across modern trade.
+      </p>
+
+      <div class="brand-grid">
+        <div class="brand-card">
+          <img src="images/samsung.png" alt="Samsung" />
+        </div>
+        <div class="brand-card">
+          <img src="images/titan.png" alt="Titan" />
+        </div>
+        <div class="brand-card">
+          <img src="images/jockey.png" alt="Jockey" />
+        </div>
+        <div class="brand-card">
+          <img src="images/campus.png" alt="Campus" />
+        </div>
+        <div class="brand-card">
+          <img src="images/zudio.png" alt="Zudio" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+
     <!-- Decorative Gradient Blobs -->
     <div class="gradient-blob blob-1"></div>
     <div class="gradient-blob blob-2"></div>
@@ -268,6 +394,44 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    const geoObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add("visible");
+
+                entry.target.querySelectorAll(".count-number").forEach(el => {
+                    const target = +el.dataset.target;
+                    let count = 0;
+                    const step = target / 60;
+
+                    const update = () => {
+                        count += step;
+                        if (count < target) {
+                            el.textContent = Math.floor(count);
+                            requestAnimationFrame(update);
+                        } else {
+                            el.textContent = target;
+                        }
+                    };
+                    update();
+                });
+
+                geoObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.3 });
+
+    document.querySelectorAll("[data-geo-animate]").forEach(el => {
+        geoObserver.observe(el);
+    });
+
+});
+</script>
+
 
 
 </body>

@@ -808,15 +808,95 @@ a {
 /* =========================
    RESPONSIVE
 ========================= */
+/* =========================
+   RESPONSIVE FIX – GEO
+========================= */
+
+/* Tablet */
 @media (max-width: 1000px) {
+
+    .geo-distribution {
+        padding: 100px 0;
+    }
+
     .geo-grid {
         grid-template-columns: 1fr;
+        gap: 60px;
+    }
+
+    .geo-content {
+        text-align: center;
+    }
+
+    .geo-desc {
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .geo-points {
+        padding-left: 0;
+    }
+
+    .geo-points li {
+        padding-left: 0;
+    }
+
+    .geo-points li::before {
+        display: none;
+    }
+
+    .geo-stats {
+        justify-content: center;
+        flex-wrap: wrap;
     }
 
     .geo-map-wrapper {
-        margin-top: 40px;
+        margin-top: 20px;
     }
 }
+
+/* Mobile */
+@media (max-width: 600px) {
+
+    .geo-distribution {
+        padding: 80px 0;
+    }
+
+    .geo-title {
+        font-size: 34px;
+        line-height: 1.2;
+    }
+
+    .geo-desc {
+        font-size: 15px;
+    }
+
+    .geo-stats {
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .geo-stat-card {
+        width: 100%;
+        min-width: unset;
+        padding: 20px;
+    }
+
+    .geo-number {
+        font-size: 32px;
+    }
+
+    .geo-map-wrapper {
+        padding: 16px;
+    }
+}
+
+/* Prevent blob overflow */
+.geo-distribution {
+    overflow-x: hidden;
+}
+
 
 
 .brand-ecosystem {

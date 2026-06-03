@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Samsung Template Editor</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #eef4ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      color: #0b2b6f;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .controls {
+      margin-bottom: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    button,
+    .upload-btn {
+      padding: 11px 15px;
+      border-radius: 8px;
+      background: #0b57ff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      display: inline-block;
+      font-family: Arial, sans-serif;
+    }
+
+    button:hover,
+    .upload-btn:hover {
+      background: #003dcc;
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      max-width: 980px;
+    }
+
+    canvas {
+      width: 100%;
+      display: block;
+      border-radius: 14px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+      background: white;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    .hint {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 14px;
+      color: #444;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Template Editor</h2>
+
+  <div class="controls">
+    <label class="upload-btn" for="upload">Upload Image</label>
+    <input type="file" id="upload" accept="image/*" hidden />
+
+    <button type="button" onclick="zoomIn()">Zoom +</button>
+    <button type="button" onclick="zoomOut()">Zoom -</button>
+    <button type="button" onclick="resetImage()">Reset</button>
+    <button type="button" onclick="downloadImage()">Download PNG</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas" width="1402" height="1122"></canvas>
+  </div>
+
+  <div class="hint">
+    Upload image, then drag inside the phone screen. Use zoom buttons to fit properly.
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const template = new Image();
+    template.src = "template.png";
+
+    let userImage = null;
+
+    let imgX = 0;
+    let imgY = 0;
+    let imgScale = 1;
+
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Final phone screen trace for your current template.png
+    const phoneScreenRatio = {
+      x: 0.4387,
+      y: 0.4474,
+      width: 0.1248,
+      height: 0.3574,
+      radius: 0.0205
+    };
+
+    function getPhoneScreen() {
+      return {
+        x: canvas.width * phoneScreenRatio.x,
+        y: canvas.height * phoneScreenRatio.y,
+        width: canvas.width * phoneScreenRatio.width,
+        height: canvas.height * phoneScreenRatio.height,
+        radius: canvas.width * phoneScreenRatio.radius
+      };
+    }
+
+    template.onload = function () {
+      drawCanvas();
+    };
+
+    template.onerror = function () {
+      alert("template.png not found. Please keep template.png in the same folder as this HTML file.");
+    };
+
+    document.getElementById("upload").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        userImage = new Image();
+
+        userImage.onload = function () {
+          fitImageToScreen();
+          drawCanvas();
+        };
+
+        userImage.src = event.target.result;
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    function roundedRectPath(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function fitImageToScreen() {
+      if (!userImage) return;
+
+      const phoneScreen = getPhoneScreen();
+
+      const scaleX = phoneScreen.width / userImage.width;
+      const scaleY = phoneScreen.height / userImage.height;
+
+      // Fill/Cover behavior
+      imgScale = Math.max(scaleX, scaleY);
+
+      const drawWidth = userImage.width * imgScale;
+      const drawHeight = userImage.height * imgScale;
+
+      imgX = phoneScreen.x + (phoneScreen.width - drawWidth) / 2;
+      imgY = phoneScreen.y + (phoneScreen.height - drawHeight) / 2;
+    }
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw full template first
+      ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+
+      if (!userImage) return;
+
+      const phoneScreen = getPhoneScreen();
+
+      ctx.save();
+
+      // Clip uploaded image inside phone screen
+      roundedRectPath(
+        ctx,
+        phoneScreen.x,
+        phoneScreen.y,
+        phoneScreen.width,
+        phoneScreen.height,
+        phoneScreen.radius
+      );
+
+      ctx.clip();
+
+      ctx.drawImage(
+        userImage,
+        imgX,
+        imgY,
+        userImage.width * imgScale,
+        userImage.height * imgScale
+      );
+
+      ctx.restore();
+    }
+
+    function zoomIn() {
+      if (!userImage) return;
+
+      const phoneScreen = getPhoneScreen();
+      const centerX = phoneScreen.x + phoneScreen.width / 2;
+      const centerY = phoneScreen.y + phoneScreen.height / 2;
+
+      const oldScale = imgScale;
+      imgScale *= 1.08;
+
+      imgX = centerX - (centerX - imgX) * (imgScale / oldScale);
+      imgY = centerY - (centerY - imgY) * (imgScale / oldScale);
+
+      drawCanvas();
+    }
+
+    function zoomOut() {
+      if (!userImage) return;
+
+      const phoneScreen = getPhoneScreen();
+      const centerX = phoneScreen.x + phoneScreen.width / 2;
+      const centerY = phoneScreen.y + phoneScreen.height / 2;
+
+      const oldScale = imgScale;
+      imgScale *= 0.92;
+
+      imgX = centerX - (centerX - imgX) * (imgScale / oldScale);
+      imgY = centerY - (centerY - imgY) * (imgScale / oldScale);
+
+      drawCanvas();
+    }
+
+    function resetImage() {
+      if (!userImage) return;
+      fitImageToScreen();
+      drawCanvas();
+    }
+
+    function downloadImage() {
+      const link = document.createElement("a");
+      link.download = "india-ka-bharosa-output.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+
+    function getCanvasPointerPosition(e) {
+      const rect = canvas.getBoundingClientRect();
+
+      let clientX;
+      let clientY;
+
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    function isInsidePhoneScreen(pos) {
+      const phoneScreen = getPhoneScreen();
+
+      return (
+        pos.x >= phoneScreen.x &&
+        pos.x <= phoneScreen.x + phoneScreen.width &&
+        pos.y >= phoneScreen.y &&
+        pos.y <= phoneScreen.y + phoneScreen.height
+      );
+    }
+
+    canvas.addEventListener("mousedown", function (e) {
+      if (!userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      if (isInsidePhoneScreen(pos)) {
+        isDragging = true;
+        lastX = pos.x;
+        lastY = pos.y;
+      }
+    });
+
+    canvas.addEventListener("mousemove", function (e) {
+      if (!isDragging || !userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      imgX += pos.x - lastX;
+      imgY += pos.y - lastY;
+
+      lastX = pos.x;
+      lastY = pos.y;
+
+      drawCanvas();
+    });
+
+    canvas.addEventListener("mouseup", function () {
+      isDragging = false;
+    });
+
+    canvas.addEventListener("mouseleave", function () {
+      isDragging = false;
+    });
+
+    // Mobile drag support
+    canvas.addEventListener("touchstart", function (e) {
+      if (!userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      if (isInsidePhoneScreen(pos)) {
+        isDragging = true;
+        lastX = pos.x;
+        lastY = pos.y;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", function (e) {
+      if (!isDragging || !userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      imgX += pos.x - lastX;
+      imgY += pos.y - lastY;
+
+      lastX = pos.x;
+      lastY = pos.y;
+
+      drawCanvas();
+      e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", function () {
+      isDragging = false;
+    });
+  </script>
+
+</body>
+</html>

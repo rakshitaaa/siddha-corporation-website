@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title>Samsung Template Editor</title>
 
   <style>
@@ -110,7 +109,7 @@
     const ctx = canvas.getContext("2d");
 
     const template = new Image();
-    template.src = "template.png";
+    template.src = "./template.png";
 
     let userImage = null;
 
@@ -122,11 +121,11 @@
     let lastX = 0;
     let lastY = 0;
 
-    // Final phone screen trace for your current template.png
+    // Adjusted phone screen trace
     const phoneScreenRatio = {
-      x: 0.4387,
+      x: 0.4365,
       y: 0.4474,
-      width: 0.1248,
+      width: 0.1270,
       height: 0.3574,
       radius: 0.0205
     };
@@ -146,7 +145,7 @@
     };
 
     template.onerror = function () {
-      alert("template.png not found. Please keep template.png in the same folder as this HTML file.");
+      alert("template.png not found. Make sure template.png is in the same folder as india-ka-bharosa.html");
     };
 
     document.getElementById("upload").addEventListener("change", function (e) {
@@ -191,7 +190,7 @@
       const scaleX = phoneScreen.width / userImage.width;
       const scaleY = phoneScreen.height / userImage.height;
 
-      // Fill/Cover behavior
+      // Cover / Fill behavior
       imgScale = Math.max(scaleX, scaleY);
 
       const drawWidth = userImage.width * imgScale;
@@ -201,19 +200,55 @@
       imgY = phoneScreen.y + (phoneScreen.height - drawHeight) / 2;
     }
 
+    function drawSamsungPunchHole(phoneScreen) {
+      const cx = phoneScreen.x + phoneScreen.width / 2;
+      const cy = phoneScreen.y + 12;
+
+      const outerR = Math.max(5.5, phoneScreen.width * 0.028);
+      const innerR = outerR * 0.72;
+
+      ctx.save();
+
+      // subtle shadow ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, outerR + 1.2, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.10)";
+      ctx.fill();
+
+      // outer dark ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+      ctx.fillStyle = "#101317";
+      ctx.fill();
+
+      // inner camera lens
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+      ctx.fillStyle = "#020407";
+      ctx.fill();
+
+      // glossy highlight
+      ctx.beginPath();
+      ctx.arc(cx - 1.2, cy - 1.2, outerR * 0.22, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(120, 170, 255, 0.55)";
+      ctx.fill();
+
+      ctx.restore();
+    }
+
     function drawCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw full template first
+      // Draw template first
       ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
 
       if (!userImage) return;
 
       const phoneScreen = getPhoneScreen();
 
+      // Clip image inside phone screen
       ctx.save();
 
-      // Clip uploaded image inside phone screen
       roundedRectPath(
         ctx,
         phoneScreen.x,
@@ -234,6 +269,9 @@
       );
 
       ctx.restore();
+
+      // Draw Samsung-style punch-hole camera
+      drawSamsungPunchHole(phoneScreen);
     }
 
     function zoomIn() {
@@ -275,10 +313,24 @@
     }
 
     function downloadImage() {
-      const link = document.createElement("a");
-      link.download = "india-ka-bharosa-output.png";
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+      canvas.toBlob(function (blob) {
+        if (!blob) {
+          alert("Download failed. Please refresh and try again.");
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = "india-ka-bharosa-output.png";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+      }, "image/png");
     }
 
     function getCanvasPointerPosition(e) {
@@ -346,7 +398,7 @@
       isDragging = false;
     });
 
-    // Mobile drag support
+    // Mobile support
     canvas.addEventListener("touchstart", function (e) {
       if (!userImage) return;
 

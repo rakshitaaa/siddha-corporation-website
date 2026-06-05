@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Samsung Awesome Family Template Editor</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      color: #111;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .controls {
+      margin-bottom: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    button,
+    .upload-btn {
+      padding: 11px 15px;
+      border-radius: 8px;
+      background: #111;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      display: inline-block;
+      font-family: Arial, sans-serif;
+    }
+
+    button:hover,
+    .upload-btn:hover {
+      background: #333;
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    canvas {
+      width: 100%;
+      display: block;
+      border-radius: 12px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+      background: white;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    .hint {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 14px;
+      color: #444;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Awesome Family Template Editor</h2>
+
+  <div class="controls">
+    <label class="upload-btn" for="upload">Upload Image</label>
+    <input type="file" id="upload" accept="image/*" hidden />
+
+    <button type="button" onclick="zoomIn()">Zoom +</button>
+    <button type="button" onclick="zoomOut()">Zoom -</button>
+    <button type="button" onclick="resetImage()">Reset</button>
+    <button type="button" onclick="downloadImage()">Download PNG</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas" width="1333" height="1333"></canvas>
+  </div>
+
+  <div class="hint">
+    Upload image, then drag inside the gold frame. Use zoom buttons or mouse wheel to fit properly.
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const template = new Image();
+    template.src = "./template-2.png";
+
+    let userImage = null;
+
+    let imgX = 0;
+    let imgY = 0;
+    let imgScale = 1;
+
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Frame trace for the right-side blank gold frame
+    // Canvas/template size: 1333 x 1333
+    const frameRatio = {
+      x: 0.5850,
+      y: 0.2200,
+      width: 0.3720,
+      height: 0.5725,
+      radius: 0.0280
+    };
+
+    function getFrame() {
+      return {
+        x: canvas.width * frameRatio.x,
+        y: canvas.height * frameRatio.y,
+        width: canvas.width * frameRatio.width,
+        height: canvas.height * frameRatio.height,
+        radius: canvas.width * frameRatio.radius
+      };
+    }
+
+    template.onload = function () {
+      drawCanvas();
+    };
+
+    template.onerror = function () {
+      alert("template-2.png not found. Keep template-2.png in the same folder as this HTML file.");
+    };
+
+    document.getElementById("upload").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        userImage = new Image();
+
+        userImage.onload = function () {
+          fitImageToFrame();
+          drawCanvas();
+        };
+
+        userImage.onerror = function () {
+          alert("Could not load uploaded image. Please try another image.");
+        };
+
+        userImage.src = event.target.result;
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    function roundedRectPath(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function fitImageToFrame() {
+      if (!userImage) return;
+
+      const frame = getFrame();
+
+      const scaleX = frame.width / userImage.width;
+      const scaleY = frame.height / userImage.height;
+
+      // Fill / cover behavior
+      imgScale = Math.max(scaleX, scaleY);
+
+      const drawWidth = userImage.width * imgScale;
+      const drawHeight = userImage.height * imgScale;
+
+      imgX = frame.x + (frame.width - drawWidth) / 2;
+      imgY = frame.y + (frame.height - drawHeight) / 2;
+    }
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw base template
+      ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+
+      if (!userImage) return;
+
+      const frame = getFrame();
+
+      // Slight inset so image does not cover the gold border
+      const inset = canvas.width * 0.012;
+
+      const imageArea = {
+        x: frame.x + inset,
+        y: frame.y + inset,
+        width: frame.width - inset * 2,
+        height: frame.height - inset * 2,
+        radius: frame.radius * 0.75
+      };
+
+      ctx.save();
+
+      roundedRectPath(
+        ctx,
+        imageArea.x,
+        imageArea.y,
+        imageArea.width,
+        imageArea.height,
+        imageArea.radius
+      );
+
+      ctx.clip();
+
+      ctx.drawImage(
+        userImage,
+        imgX,
+        imgY,
+        userImage.width * imgScale,
+        userImage.height * imgScale
+      );
+
+      ctx.restore();
+    }
+
+    function zoomIn() {
+      if (!userImage) return;
+
+      const frame = getFrame();
+      const centerX = frame.x + frame.width / 2;
+      const centerY = frame.y + frame.height / 2;
+
+      const oldScale = imgScale;
+      imgScale *= 1.08;
+
+      imgX = centerX - (centerX - imgX) * (imgScale / oldScale);
+      imgY = centerY - (centerY - imgY) * (imgScale / oldScale);
+
+      drawCanvas();
+    }
+
+    function zoomOut() {
+      if (!userImage) return;
+
+      const frame = getFrame();
+      const centerX = frame.x + frame.width / 2;
+      const centerY = frame.y + frame.height / 2;
+
+      const oldScale = imgScale;
+      imgScale *= 0.92;
+
+      imgX = centerX - (centerX - imgX) * (imgScale / oldScale);
+      imgY = centerY - (centerY - imgY) * (imgScale / oldScale);
+
+      drawCanvas();
+    }
+
+    function resetImage() {
+      if (!userImage) return;
+      fitImageToFrame();
+      drawCanvas();
+    }
+
+    function downloadImage() {
+      canvas.toBlob(function (blob) {
+        if (!blob) {
+          alert("Download failed. Please refresh and try again.");
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = "awesome-family-output.png";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    }
+
+    function getCanvasPointerPosition(e) {
+      const rect = canvas.getBoundingClientRect();
+
+      let clientX;
+      let clientY;
+
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    function isInsideFrame(pos) {
+      const frame = getFrame();
+
+      return (
+        pos.x >= frame.x &&
+        pos.x <= frame.x + frame.width &&
+        pos.y >= frame.y &&
+        pos.y <= frame.y + frame.height
+      );
+    }
+
+    canvas.addEventListener("mousedown", function (e) {
+      if (!userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      if (isInsideFrame(pos)) {
+        isDragging = true;
+        lastX = pos.x;
+        lastY = pos.y;
+      }
+    });
+
+    canvas.addEventListener("mousemove", function (e) {
+      if (!isDragging || !userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      imgX += pos.x - lastX;
+      imgY += pos.y - lastY;
+
+      lastX = pos.x;
+      lastY = pos.y;
+
+      drawCanvas();
+    });
+
+    canvas.addEventListener("mouseup", function () {
+      isDragging = false;
+    });
+
+    canvas.addEventListener("mouseleave", function () {
+      isDragging = false;
+    });
+
+    // Mouse wheel zoom
+    canvas.addEventListener("wheel", function (e) {
+      if (!userImage) return;
+
+      e.preventDefault();
+
+      if (e.deltaY < 0) {
+        zoomIn();
+      } else {
+        zoomOut();
+      }
+    }, { passive: false });
+
+    // Mobile drag support
+    canvas.addEventListener("touchstart", function (e) {
+      if (!userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      if (isInsideFrame(pos)) {
+        isDragging = true;
+        lastX = pos.x;
+        lastY = pos.y;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", function (e) {
+      if (!isDragging || !userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      imgX += pos.x - lastX;
+      imgY += pos.y - lastY;
+
+      lastX = pos.x;
+      lastY = pos.y;
+
+      drawCanvas();
+      e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", function () {
+      isDragging = false;
+    });
+  </script>
+
+</body>
+</html>

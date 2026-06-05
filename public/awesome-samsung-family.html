@@ -14,58 +14,83 @@
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      background: #202020;
+      color: #111;
+      min-height: 100vh;
+    }
+
+    .page {
+      width: 100%;
+      min-height: 100vh;
+      background: #f7f7f7;
+      padding: 22px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
-      color: #111;
     }
 
     h2 {
-      margin: 0 0 12px;
+      width: 100%;
+      max-width: 520px;
+      margin: 0 0 14px;
       font-size: 24px;
-      font-weight: 800;
+      line-height: 1.15;
+      font-weight: 900;
+      letter-spacing: -0.5px;
     }
 
     .controls {
-      margin-bottom: 16px;
-      display: flex;
+      width: 100%;
+      max-width: 520px;
+      margin-bottom: 18px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
       gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
-      align-items: center;
     }
 
     button,
     .upload-btn {
-      padding: 11px 15px;
-      border-radius: 8px;
+      width: 100%;
+      padding: 13px 12px;
+      border-radius: 10px;
       background: #111;
       color: white;
       border: none;
       cursor: pointer;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 14px;
-      display: inline-block;
+      text-align: center;
       font-family: Arial, sans-serif;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
     }
 
     button:hover,
     .upload-btn:hover {
-      background: #333;
+      background: #2a2a2a;
+    }
+
+    .download-btn {
+      grid-column: span 2;
+      background: #0b57ff;
+    }
+
+    .download-btn:hover {
+      background: #003dcc;
     }
 
     .canvas-wrap {
       width: 100%;
-      max-width: 900px;
+      max-width: 520px;
+      background: white;
+      border-radius: 16px;
+      padding: 10px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.16);
     }
 
     canvas {
       width: 100%;
       display: block;
       border-radius: 12px;
-      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
       background: white;
       cursor: grab;
     }
@@ -75,34 +100,79 @@
     }
 
     .hint {
-      margin-top: 10px;
+      width: 100%;
+      max-width: 520px;
+      margin-top: 12px;
       text-align: center;
       font-size: 14px;
-      color: #444;
+      line-height: 1.35;
+      color: #333;
+    }
+
+    @media (min-width: 700px) {
+      body {
+        background: #eef4ff;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+
+      .page {
+        max-width: 980px;
+        padding: 28px;
+        background: #f7f7f7;
+      }
+
+      h2,
+      .controls,
+      .canvas-wrap,
+      .hint {
+        max-width: 760px;
+      }
+
+      .controls {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      button,
+      .upload-btn {
+        width: auto;
+        min-width: 120px;
+      }
+
+      .download-btn {
+        grid-column: auto;
+      }
     }
   </style>
 </head>
 
 <body>
 
-  <h2>Awesome Family Template Editor</h2>
+  <div class="page">
 
-  <div class="controls">
-    <label class="upload-btn" for="upload">Upload Image</label>
-    <input type="file" id="upload" accept="image/*" hidden />
+    <h2>Awesome Family Template Editor</h2>
 
-    <button type="button" onclick="zoomIn()">Zoom +</button>
-    <button type="button" onclick="zoomOut()">Zoom -</button>
-    <button type="button" onclick="resetImage()">Reset</button>
-    <button type="button" onclick="downloadImage()">Download PNG</button>
-  </div>
+    <div class="controls">
+      <label class="upload-btn" for="upload">Upload Image</label>
+      <input type="file" id="upload" accept="image/*" hidden />
 
-  <div class="canvas-wrap">
-    <canvas id="canvas" width="1333" height="1333"></canvas>
-  </div>
+      <button type="button" onclick="zoomIn()">Zoom +</button>
+      <button type="button" onclick="zoomOut()">Zoom -</button>
+      <button type="button" onclick="resetImage()">Reset</button>
+      <button class="download-btn" type="button" onclick="downloadImage()">Download PNG</button>
+    </div>
 
-  <div class="hint">
-    Upload image, then drag inside the gold frame. Use zoom buttons or mouse wheel to fit properly.
+    <div class="canvas-wrap">
+      <canvas id="canvas" width="1333" height="1333"></canvas>
+    </div>
+
+    <div class="hint">
+      Upload image, then drag inside the gold frame. Use zoom buttons or mouse wheel to fit properly.
+    </div>
+
   </div>
 
   <script>
@@ -188,13 +258,28 @@
       ctx.closePath();
     }
 
+    function getImageArea() {
+      const frame = getFrame();
+
+      // Inset keeps the image away from the gold border
+      const inset = canvas.width * 0.012;
+
+      return {
+        x: frame.x + inset,
+        y: frame.y + inset,
+        width: frame.width - inset * 2,
+        height: frame.height - inset * 2,
+        radius: frame.radius * 0.75
+      };
+    }
+
     function fitImageToFrame() {
       if (!userImage) return;
 
-      const frame = getFrame();
+      const imageArea = getImageArea();
 
-      const scaleX = frame.width / userImage.width;
-      const scaleY = frame.height / userImage.height;
+      const scaleX = imageArea.width / userImage.width;
+      const scaleY = imageArea.height / userImage.height;
 
       // Fill / cover behavior
       imgScale = Math.max(scaleX, scaleY);
@@ -202,8 +287,42 @@
       const drawWidth = userImage.width * imgScale;
       const drawHeight = userImage.height * imgScale;
 
-      imgX = frame.x + (frame.width - drawWidth) / 2;
-      imgY = frame.y + (frame.height - drawHeight) / 2;
+      imgX = imageArea.x + (imageArea.width - drawWidth) / 2;
+      imgY = imageArea.y + (imageArea.height - drawHeight) / 2;
+    }
+
+    function drawUploadIcon() {
+      const imageArea = getImageArea();
+
+      const cx = imageArea.x + imageArea.width / 2;
+      const cy = imageArea.y + imageArea.height / 2;
+      const size = canvas.width * 0.045;
+
+      ctx.save();
+
+      ctx.fillStyle = "rgba(215, 160, 55, 0.92)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#fff";
+
+      // upload arrow
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - size * 0.35);
+      ctx.lineTo(cx - size * 0.22, cy - size * 0.08);
+      ctx.lineTo(cx - size * 0.08, cy - size * 0.08);
+      ctx.lineTo(cx - size * 0.08, cy + size * 0.22);
+      ctx.lineTo(cx + size * 0.08, cy + size * 0.22);
+      ctx.lineTo(cx + size * 0.08, cy - size * 0.08);
+      ctx.lineTo(cx + size * 0.22, cy - size * 0.08);
+      ctx.closePath();
+      ctx.fill();
+
+      // base line
+      ctx.fillRect(cx - size * 0.28, cy + size * 0.27, size * 0.56, size * 0.08);
+
+      ctx.restore();
     }
 
     function drawCanvas() {
@@ -212,20 +331,12 @@
       // Draw base template
       ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
 
-      if (!userImage) return;
+      const imageArea = getImageArea();
 
-      const frame = getFrame();
-
-      // Slight inset so image does not cover the gold border
-      const inset = canvas.width * 0.012;
-
-      const imageArea = {
-        x: frame.x + inset,
-        y: frame.y + inset,
-        width: frame.width - inset * 2,
-        height: frame.height - inset * 2,
-        radius: frame.radius * 0.75
-      };
+      if (!userImage) {
+        drawUploadIcon();
+        return;
+      }
 
       ctx.save();
 
@@ -254,9 +365,9 @@
     function zoomIn() {
       if (!userImage) return;
 
-      const frame = getFrame();
-      const centerX = frame.x + frame.width / 2;
-      const centerY = frame.y + frame.height / 2;
+      const imageArea = getImageArea();
+      const centerX = imageArea.x + imageArea.width / 2;
+      const centerY = imageArea.y + imageArea.height / 2;
 
       const oldScale = imgScale;
       imgScale *= 1.08;
@@ -270,9 +381,9 @@
     function zoomOut() {
       if (!userImage) return;
 
-      const frame = getFrame();
-      const centerX = frame.x + frame.width / 2;
-      const centerY = frame.y + frame.height / 2;
+      const imageArea = getImageArea();
+      const centerX = imageArea.x + imageArea.width / 2;
+      const centerY = imageArea.y + imageArea.height / 2;
 
       const oldScale = imgScale;
       imgScale *= 0.92;
@@ -331,13 +442,13 @@
     }
 
     function isInsideFrame(pos) {
-      const frame = getFrame();
+      const imageArea = getImageArea();
 
       return (
-        pos.x >= frame.x &&
-        pos.x <= frame.x + frame.width &&
-        pos.y >= frame.y &&
-        pos.y <= frame.y + frame.height
+        pos.x >= imageArea.x &&
+        pos.x <= imageArea.x + imageArea.width &&
+        pos.y >= imageArea.y &&
+        pos.y <= imageArea.y + imageArea.height
       );
     }
 

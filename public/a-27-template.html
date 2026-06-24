@@ -458,7 +458,6 @@
   </div>
 
   <script>
-    // After backend deploy, change above line to:
     const API_URL = "https://api.siddhaconnect.com/api/video/generate-a27";
 
     const openModalBtn = document.getElementById("openModalBtn");
@@ -496,7 +495,7 @@
       const shopName = cleanShopName(shopNameInput.value);
 
       if (shopName) {
-        previewShop.textContent = shopName;
+        previewShop.textContent = shopName.toUpperCase();
         previewText.classList.add("show");
       } else {
         previewText.classList.remove("show");
@@ -547,12 +546,22 @@
       closeModalBtn.disabled = true;
       warningText.classList.add("show");
 
-      previewShop.textContent = shopName;
+      previewShop.textContent = shopName.toUpperCase();
       previewText.classList.add("show");
+
+      let fakeProgress = 20;
+      let progressTimer = null;
 
       try {
         setStatus("Generating your personalized video...");
-        setProgress(20);
+        setProgress(fakeProgress);
+
+        progressTimer = setInterval(() => {
+          if (fakeProgress < 90) {
+            fakeProgress += 5;
+            setProgress(fakeProgress);
+          }
+        }, 3000);
 
         const response = await fetch(API_URL, {
           method: "POST",
@@ -562,13 +571,19 @@
           body: JSON.stringify({ shopName }),
         });
 
-        setProgress(70);
+        let data;
 
-        const data = await response.json();
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          throw new Error("Backend did not return JSON. Please check server logs.");
+        }
 
         if (!response.ok || !data.success) {
-          throw new Error(data.message || "Video generation failed");
+          throw new Error(data.message || data.error || "Video generation failed");
         }
+
+        clearInterval(progressTimer);
 
         setProgress(100);
         setStatus("Your video is ready.");
@@ -584,9 +599,11 @@
         downloadLink.download = `galaxy-a27-coming-soon-${safeFileName || "shop"}.mp4`;
         downloadLink.classList.add("show");
       } catch (error) {
-        console.error(error);
+        if (progressTimer) clearInterval(progressTimer);
+
+        console.error("Generate video error:", error);
         setProgress(0);
-        setStatus("Something went wrong while generating video. Please try again.");
+        setStatus(error.message || "Something went wrong while generating video. Please try again.");
       } finally {
         generateBtn.disabled = false;
         closeModalBtn.disabled = false;

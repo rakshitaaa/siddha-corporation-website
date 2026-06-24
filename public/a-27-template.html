@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Galaxy A27 Coming Soon Video</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, #eafff7 0%, transparent 34%),
+        radial-gradient(circle at top right, #f2eaff 0%, transparent 32%),
+        linear-gradient(180deg, #ffffff 0%, #f5f7fb 100%);
+      color: #101828;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 18px;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 520px;
+      text-align: center;
+    }
+
+    .brand-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(17, 24, 39, 0.08);
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      color: #111827;
+    }
+
+    h1 {
+      font-size: clamp(28px, 7vw, 42px);
+      line-height: 1.05;
+      letter-spacing: -1px;
+      margin-bottom: 10px;
+      color: #101828;
+    }
+
+    .subtitle {
+      color: #667085;
+      font-size: clamp(15px, 4vw, 17px);
+      line-height: 1.5;
+      max-width: 430px;
+      margin: 0 auto 22px;
+    }
+
+    .video-card {
+      width: 100%;
+      background: #ffffff;
+      border-radius: 28px;
+      padding: 12px;
+      box-shadow: 0 24px 70px rgba(16, 24, 40, 0.14);
+      margin-bottom: 22px;
+    }
+
+    .video-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #000;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      background: #000;
+    }
+
+    .preview-text {
+      position: absolute;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%);
+      width: calc(100% - 36px);
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(0, 0, 0, 0.48);
+      backdrop-filter: blur(10px);
+      color: white;
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: 0.25s ease;
+    }
+
+    .preview-text.show {
+      opacity: 1;
+    }
+
+    .preview-text .small {
+      font-size: clamp(13px, 3.5vw, 16px);
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+
+    .preview-text .shop {
+      font-size: clamp(20px, 6vw, 30px);
+      font-weight: 950;
+      line-height: 1.1;
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      word-break: break-word;
+    }
+
+    .main-btn {
+      width: 100%;
+      border: none;
+      border-radius: 18px;
+      padding: 17px 20px;
+      font-size: 17px;
+      font-weight: 900;
+      color: white;
+      background: linear-gradient(135deg, #111827, #2f3a4c);
+      cursor: pointer;
+      box-shadow: 0 14px 28px rgba(17, 24, 39, 0.22);
+    }
+
+    .main-btn:active {
+      transform: scale(0.99);
+    }
+
+    .main-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .note {
+      margin-top: 14px;
+      color: #667085;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.62);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 16px;
+      z-index: 20;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 480px;
+      background: white;
+      border-radius: 28px;
+      padding: 22px;
+      text-align: left;
+      animation: slideUp 0.22s ease;
+      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.3);
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .modal h2 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      color: #101828;
+    }
+
+    .modal p {
+      color: #667085;
+      font-size: 15px;
+      line-height: 1.45;
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-weight: 800;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #101828;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid #d0d5dd;
+      border-radius: 16px;
+      padding: 16px;
+      font-size: 17px;
+      outline: none;
+      margin-bottom: 14px;
+      color: #101828;
+      background: #ffffff;
+    }
+
+    input:focus {
+      border-color: #111827;
+      box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.08);
+    }
+
+    .modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .secondary-btn,
+    .generate-btn {
+      border: none;
+      border-radius: 16px;
+      padding: 15px 14px;
+      font-size: 15px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .secondary-btn {
+      background: #f2f4f7;
+      color: #111827;
+    }
+
+    .generate-btn {
+      background: #111827;
+      color: white;
+    }
+
+    .generate-btn:disabled,
+    .secondary-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .status {
+      display: none;
+      margin-top: 16px;
+      padding: 13px 14px;
+      border-radius: 14px;
+      background: #f2f4f7;
+      color: #344054;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .progress-wrap {
+      display: none;
+      margin-top: 14px;
+    }
+
+    .progress-wrap.show {
+      display: block;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      background: #e4e7ec;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(135deg, #12b76a, #0e9384);
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    .progress-text {
+      margin-top: 8px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 900;
+      color: #344054;
+    }
+
+    .download-ready {
+      display: none;
+      margin-top: 14px;
+      text-decoration: none;
+      text-align: center;
+      border-radius: 16px;
+      padding: 15px;
+      font-weight: 950;
+      background: #12b76a;
+      color: white;
+    }
+
+    .download-ready.show {
+      display: block;
+    }
+
+    .warning {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #667085;
+      line-height: 1.4;
+      display: none;
+    }
+
+    .warning.show {
+      display: block;
+    }
+
+    @media (min-width: 700px) {
+      .modal-backdrop {
+        align-items: center;
+      }
+    }
+
+    @media (max-width: 380px) {
+      body {
+        padding: 12px;
+      }
+
+      .video-card {
+        border-radius: 22px;
+        padding: 9px;
+      }
+
+      .video-wrap {
+        border-radius: 18px;
+      }
+
+      .modal {
+        padding: 18px;
+        border-radius: 24px;
+      }
+
+      .modal-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (min-width: 700px) and (max-width: 1100px) {
+      .page {
+        max-width: 620px;
+      }
+
+      .video-wrap {
+        max-height: 72vh;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <div class="brand-pill">Galaxy A27 Launch Video</div>
+
+    <h1>Personalized shop video</h1>
+
+    <p class="subtitle">
+      Add your shop name to the launch video and download a ready-to-share version.
+    </p>
+
+    <section class="video-card">
+      <div class="video-wrap">
+        <video id="mainVideo" src="a27-video.mp4" controls playsinline preload="metadata"></video>
+
+        <div id="previewText" class="preview-text">
+          <div class="small">Coming soon at</div>
+          <div id="previewShop" class="shop">YOUR SHOP</div>
+        </div>
+      </div>
+    </section>
+
+    <button id="openModalBtn" class="main-btn">
+      Download personalized video
+    </button>
+
+    <p class="note">
+      Best for Instagram, WhatsApp Status, dealer sharing and retail promotion.
+    </p>
+  </main>
+
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <h2>Enter shop name</h2>
+
+      <p>
+        This name will appear at the bottom of the video as:
+        <br />
+        <strong>Coming soon at YOUR SHOP</strong>
+      </p>
+
+      <label for="shopName">Shop name</label>
+
+      <input
+        id="shopName"
+        type="text"
+        placeholder="Example: Siddha Corporation"
+        maxlength="40"
+        autocomplete="organization"
+      />
+
+      <div class="modal-actions">
+        <button id="closeModalBtn" class="secondary-btn">Cancel</button>
+        <button id="generateBtn" class="generate-btn">Generate video</button>
+      </div>
+
+      <div id="statusBox" class="status">
+        Preparing video...
+      </div>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
+
+      <a id="downloadLink" class="download-ready" download="galaxy-a27-coming-soon.mp4">
+        Download video
+      </a>
+
+      <div id="warningText" class="warning">
+        Please keep this page open while your personalized video is being created.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:8080/api/video/generate-a27";
+    // After backend deploy, change above line to:
+    // const API_URL = "https://api.siddhaconnect.com/api/video/generate-a27";
+
+    const openModalBtn = document.getElementById("openModalBtn");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const shopNameInput = document.getElementById("shopName");
+    const generateBtn = document.getElementById("generateBtn");
+    const statusBox = document.getElementById("statusBox");
+    const downloadLink = document.getElementById("downloadLink");
+    const previewText = document.getElementById("previewText");
+    const previewShop = document.getElementById("previewShop");
+    const progressWrap = document.getElementById("progressWrap");
+    const progressFill = document.getElementById("progressFill");
+    const progressText = document.getElementById("progressText");
+    const warningText = document.getElementById("warningText");
+
+    openModalBtn.addEventListener("click", () => {
+      modalBackdrop.classList.add("show");
+      setTimeout(() => shopNameInput.focus(), 100);
+    });
+
+    closeModalBtn.addEventListener("click", () => {
+      if (!generateBtn.disabled) {
+        modalBackdrop.classList.remove("show");
+      }
+    });
+
+    modalBackdrop.addEventListener("click", (event) => {
+      if (event.target === modalBackdrop && !generateBtn.disabled) {
+        modalBackdrop.classList.remove("show");
+      }
+    });
+
+    shopNameInput.addEventListener("input", () => {
+      const shopName = cleanShopName(shopNameInput.value);
+
+      if (shopName) {
+        previewShop.textContent = shopName;
+        previewText.classList.add("show");
+      } else {
+        previewText.classList.remove("show");
+      }
+    });
+
+    function cleanShopName(value) {
+      return value
+        .trim()
+        .replace(/\s+/g, " ")
+        .slice(0, 40);
+    }
+
+    function setStatus(message) {
+      statusBox.textContent = message;
+      statusBox.classList.add("show");
+    }
+
+    function setProgress(percent) {
+      const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+
+      progressWrap.classList.add("show");
+      progressFill.style.width = safePercent + "%";
+      progressText.textContent = safePercent + "%";
+    }
+
+    function resetOutput() {
+      downloadLink.classList.remove("show");
+      warningText.classList.remove("show");
+      statusBox.classList.remove("show");
+      progressWrap.classList.remove("show");
+      progressFill.style.width = "0%";
+      progressText.textContent = "0%";
+      downloadLink.removeAttribute("href");
+    }
+
+    generateBtn.addEventListener("click", async () => {
+      const shopName = cleanShopName(shopNameInput.value);
+
+      if (!shopName) {
+        alert("Please enter shop name.");
+        return;
+      }
+
+      resetOutput();
+
+      generateBtn.disabled = true;
+      closeModalBtn.disabled = true;
+      warningText.classList.add("show");
+
+      previewShop.textContent = shopName;
+      previewText.classList.add("show");
+
+      try {
+        setStatus("Generating your personalized video...");
+        setProgress(20);
+
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ shopName }),
+        });
+
+        setProgress(70);
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Video generation failed");
+        }
+
+        setProgress(100);
+        setStatus("Your video is ready.");
+        warningText.classList.remove("show");
+
+        const safeFileName = shopName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 40);
+
+        downloadLink.href = data.fullDownloadUrl;
+        downloadLink.download = `galaxy-a27-coming-soon-${safeFileName || "shop"}.mp4`;
+        downloadLink.classList.add("show");
+      } catch (error) {
+        console.error(error);
+        setProgress(0);
+        setStatus("Something went wrong while generating video. Please try again.");
+      } finally {
+        generateBtn.disabled = false;
+        closeModalBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

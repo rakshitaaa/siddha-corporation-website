@@ -234,6 +234,7 @@
           <button id="zoom-out" type="button">Zoom -</button>
           <button id="reset" type="button">Reset</button>
           <button id="clear" type="button">Clear</button>
+          <button id="play-video" type="button" disabled>Play Video</button>
 
           <div class="range-wrap">
             <div class="range-row">
@@ -260,6 +261,7 @@
     const uploadInput = document.getElementById("upload");
     const statusEl = document.getElementById("status");
     const downloadButton = document.getElementById("download");
+    const playVideoButton = document.getElementById("play-video");
     const zoomRange = document.getElementById("zoom-range");
     const zoomValue = document.getElementById("zoom-value");
 
@@ -295,6 +297,7 @@
     let lastY = 0;
     let previewFrame = 0;
     let isExporting = false;
+    let exportMimeType = "";
 
     function setStatus(message, isError) {
       statusEl.textContent = message;
@@ -365,6 +368,36 @@
       const percentage = Math.round((mediaScale / minMediaScale) * 100);
       zoomRange.value = String(Math.min(300, Math.max(100, percentage)));
       zoomValue.textContent = percentage + "%";
+    }
+
+    function getRecorderMimeType() {
+      const types = [
+        "video/mp4;codecs=h264",
+        "video/mp4;codecs=avc1",
+        "video/mp4",
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm"
+      ];
+
+      return types.find(function (type) {
+        return window.MediaRecorder && MediaRecorder.isTypeSupported(type);
+      }) || "";
+    }
+
+    function getExportExtension() {
+      return exportMimeType.includes("mp4") ? "mp4" : "webm";
+    }
+
+    function refreshVideoButtons() {
+      if (mediaType !== "video" || !mediaEl) {
+        playVideoButton.disabled = true;
+        playVideoButton.textContent = "Play Video";
+        return;
+      }
+
+      playVideoButton.disabled = false;
+      playVideoButton.textContent = mediaEl.paused ? "Play Video" : "Pause Video";
     }
 
     function fitMediaToFrame() {
@@ -487,9 +520,12 @@
       mediaHeight = 0;
       mediaScale = 1;
       minMediaScale = 1;
+      exportMimeType = "";
       zoomRange.value = "100";
       zoomValue.textContent = "100%";
       zoomRange.disabled = true;
+      playVideoButton.disabled = true;
+      playVideoButton.textContent = "Play Video";
       downloadButton.disabled = true;
       downloadButton.textContent = "Download";
     }
@@ -549,15 +585,18 @@
         mediaEl = video;
         mediaWidth = video.videoWidth;
         mediaHeight = video.videoHeight;
+        exportMimeType = getRecorderMimeType();
         fitMediaToFrame();
         drawCanvas();
         startPreviewLoop();
-        downloadButton.disabled = false;
-        downloadButton.textContent = "Download Video";
-        setStatus("Video ready.");
+        downloadButton.disabled = !exportMimeType;
+        downloadButton.textContent = exportMimeType ? "Download " + getExportExtension().toUpperCase() : "Video Export Unavailable";
+        refreshVideoButtons();
+        setStatus(exportMimeType && getExportExtension() === "mp4" ? "Video ready. MP4 export is supported here." : "Video ready. This browser can only export WebM.");
 
         video.play().catch(function () {
           setStatus("Video ready. Tap the preview once if playback is paused.");
+          refreshVideoButtons();
         });
       };
 
@@ -672,20 +711,6 @@
       }, "image/jpeg", 0.92);
     }
 
-    function getRecorderMimeType() {
-      const types = [
-        "video/webm;codecs=vp9",
-        "video/webm;codecs=vp8",
-        "video/webm",
-        "video/mp4;codecs=h264",
-        "video/mp4"
-      ];
-
-      return types.find(function (type) {
-        return window.MediaRecorder && MediaRecorder.isTypeSupported(type);
-      }) || "";
-    }
-
     function seekVideo(time) {
       return new Promise(function (resolve) {
         let resolved = false;
@@ -713,7 +738,7 @@
         return;
       }
 
-      const mimeType = getRecorderMimeType();
+      const mimeType = exportMimeType || getRecorderMimeType();
       if (!mimeType) {
         setStatus("This browser does not support video recording.", true);
         return;
@@ -773,7 +798,7 @@
       }).then(function () {
         const blob = new Blob(chunks, { type: mimeType });
         downloadBlob(blob, "fold8-template-video." + extension);
-        setStatus("Video downloaded.");
+        setStatus(extension === "mp4" ? "MP4 video downloaded." : "WebM video downloaded. Some apps may not share WebM.");
       }).catch(function () {
         setStatus("Video export failed. Try a shorter MP4 or WebM.", true);
       });
@@ -785,6 +810,8 @@
       isExporting = false;
       uploadInput.disabled = false;
       downloadButton.disabled = false;
+      downloadButton.textContent = "Download " + getExportExtension().toUpperCase();
+      refreshVideoButtons();
     }
 
     function handleDownload() {
@@ -832,6 +859,20 @@
 
     downloadButton.addEventListener("click", handleDownload);
     zoomRange.addEventListener("input", setZoomFromRange);
+
+    playVideoButton.addEventListener("click", function () {
+      if (mediaType !== "video" || !mediaEl || isExporting) return;
+
+      if (mediaEl.paused) {
+        mediaEl.play().then(refreshVideoButtons).catch(function () {
+          setStatus("This phone blocked video playback. Try a smaller MP4.", true);
+          refreshVideoButtons();
+        });
+      } else {
+        mediaEl.pause();
+        refreshVideoButtons();
+      }
+    });
 
     canvas.addEventListener("mousedown", function (event) {
       if (!mediaEl) return;
@@ -901,7 +942,7 @@
 
     canvas.addEventListener("click", function () {
       if (mediaType === "video" && mediaEl.paused && !isExporting) {
-        mediaEl.play().catch(function () {});
+        mediaEl.play().then(refreshVideoButtons).catch(function () {});
       }
     });
   </script>

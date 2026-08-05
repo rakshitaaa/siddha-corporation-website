@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galaxy Unpacked Template Editor</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #202020;
+      color: #111;
+      min-height: 100vh;
+    }
+
+    .page {
+      width: 100%;
+      min-height: 100vh;
+      background: #f7f7f7;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h2 {
+      width: 100%;
+      max-width: 540px;
+      margin: 0 0 14px;
+      font-size: 24px;
+      line-height: 1.15;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+    }
+
+    .controls {
+      width: 100%;
+      max-width: 540px;
+      margin-bottom: 18px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    button,
+    .upload-btn {
+      width: 100%;
+      padding: 13px 12px;
+      border-radius: 10px;
+      background: #111;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 14px;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    }
+
+    button:hover,
+    .upload-btn:hover {
+      background: #2a2a2a;
+    }
+
+    .download-btn {
+      grid-column: span 2;
+      background: #215cff;
+    }
+
+    .download-btn:hover {
+      background: #1148df;
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      max-width: 560px;
+      background: white;
+      border-radius: 16px;
+      padding: 10px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.16);
+    }
+
+    canvas {
+      width: 100%;
+      display: block;
+      border-radius: 12px;
+      background: white;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    .hint {
+      width: 100%;
+      max-width: 540px;
+      margin-top: 12px;
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.4;
+      color: #333;
+    }
+
+    @media (min-width: 700px) {
+      body {
+        background: #eef2f8;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+
+      .page {
+        max-width: 980px;
+        padding: 28px;
+        background: #f7f7f7;
+      }
+
+      h2,
+      .controls,
+      .canvas-wrap,
+      .hint {
+        max-width: 760px;
+      }
+
+      .controls {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      button,
+      .upload-btn {
+        width: auto;
+        min-width: 120px;
+      }
+
+      .download-btn {
+        grid-column: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+    <h2>Galaxy Unpacked Template Editor</h2>
+
+    <div class="controls">
+      <label class="upload-btn" for="upload">Upload Photo</label>
+      <input type="file" id="upload" accept="image/*" hidden />
+
+      <button type="button" onclick="zoomIn()">Zoom +</button>
+      <button type="button" onclick="zoomOut()">Zoom -</button>
+      <button type="button" onclick="resetImage()">Reset</button>
+      <button class="download-btn" type="button" onclick="downloadImage()">Download PNG</button>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="canvas" width="1125" height="1536"></canvas>
+    </div>
+
+    <div class="hint">
+      Upload photo, then drag inside the ticket frame. Use zoom buttons or mouse wheel to fit properly.
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const bgTemplate = new Image();
+    const overlayTemplate = new Image();
+
+    bgTemplate.src = "./unpacked-bg.png";
+    overlayTemplate.src = "./unpacked-overlay.png";
+
+    let bgLoaded = false;
+    let overlayLoaded = false;
+
+    let userImage = null;
+    let imgX = 0;
+    let imgY = 0;
+    let imgScale = 1;
+
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Photo frame coordinates for current artwork
+    // Based on 1125 x 1536 canvas
+    const frameRatio = {
+      x: 0.3200,
+      y: 0.2810,
+      width: 0.3530,
+      height: 0.4060,
+      radius: 0.0320
+    };
+
+    function getFrame() {
+      return {
+        x: canvas.width * frameRatio.x,
+        y: canvas.height * frameRatio.y,
+        width: canvas.width * frameRatio.width,
+        height: canvas.height * frameRatio.height,
+        radius: canvas.width * frameRatio.radius
+      };
+    }
+
+    function getImageArea() {
+      const frame = getFrame();
+
+      const inset = canvas.width * 0.010;
+
+      return {
+        x: frame.x + inset,
+        y: frame.y + inset,
+        width: frame.width - inset * 2,
+        height: frame.height - inset * 2,
+        radius: frame.radius * 0.88
+      };
+    }
+
+    function tryInitialDraw() {
+      if (bgLoaded && overlayLoaded) {
+        drawCanvas();
+      }
+    }
+
+    bgTemplate.onload = function () {
+      bgLoaded = true;
+      tryInitialDraw();
+    };
+
+    overlayTemplate.onload = function () {
+      overlayLoaded = true;
+      tryInitialDraw();
+    };
+
+    bgTemplate.onerror = function () {
+      alert("unpacked-bg.png not found. Keep it in the same folder as this HTML file.");
+    };
+
+    overlayTemplate.onerror = function () {
+      alert("unpacked-overlay.png not found. Keep it in the same folder as this HTML file.");
+    };
+
+    document.getElementById("upload").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        userImage = new Image();
+
+        userImage.onload = function () {
+          fitImageToFrame();
+          drawCanvas();
+        };
+
+        userImage.onerror = function () {
+          alert("Could not load uploaded image. Please try another image.");
+        };
+
+        userImage.src = event.target.result;
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    function roundedRectPath(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function fitImageToFrame() {
+      if (!userImage) return;
+
+      const imageArea = getImageArea();
+
+      const scaleX = imageArea.width / userImage.width;
+      const scaleY = imageArea.height / userImage.height;
+
+      imgScale = Math.max(scaleX, scaleY);
+
+      const drawWidth = userImage.width * imgScale;
+      const drawHeight = userImage.height * imgScale;
+
+      imgX = imageArea.x + (imageArea.width - drawWidth) / 2;
+      imgY = imageArea.y + (imageArea.height - drawHeight) / 2;
+    }
+
+    function drawUploadIcon() {
+      const area = getImageArea();
+
+      const cx = area.x + area.width / 2;
+      const cy = area.y + area.height / 2;
+      const size = canvas.width * 0.050;
+
+      ctx.save();
+
+      ctx.fillStyle = "rgba(79, 117, 255, 0.15)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.95, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#4f75ff";
+      ctx.lineWidth = canvas.width * 0.0025;
+
+      // camera body
+      ctx.beginPath();
+      ctx.roundRect(cx - size * 0.42, cy - size * 0.16, size * 0.84, size * 0.48, size * 0.10);
+      ctx.stroke();
+
+      // top bump
+      ctx.beginPath();
+      ctx.roundRect(cx - size * 0.22, cy - size * 0.28, size * 0.24, size * 0.12, size * 0.05);
+      ctx.stroke();
+
+      // lens
+      ctx.beginPath();
+      ctx.arc(cx, cy + size * 0.08, size * 0.14, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // plus
+      ctx.beginPath();
+      ctx.arc(cx + size * 0.35, cy + size * 0.18, size * 0.12, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(cx + size * 0.35, cy + size * 0.11);
+      ctx.lineTo(cx + size * 0.35, cy + size * 0.25);
+      ctx.moveTo(cx + size * 0.28, cy + size * 0.18);
+      ctx.lineTo(cx + size * 0.42, cy + size * 0.18);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (bgLoaded) {
+        ctx.drawImage(bgTemplate, 0, 0, canvas.width, canvas.height);
+      }
+
+      const imageArea = getImageArea();
+
+      if (!userImage) {
+        drawUploadIcon();
+        if (overlayLoaded) {
+          ctx.drawImage(overlayTemplate, 0, 0, canvas.width, canvas.height);
+        }
+        return;
+      }
+
+      ctx.save();
+
+      roundedRectPath(
+        ctx,
+        imageArea.x,
+        imageArea.y,
+        imageArea.width,
+        imageArea.height,
+        imageArea.radius
+      );
+
+      ctx.clip();
+
+      ctx.drawImage(
+        userImage,
+        imgX,
+        imgY,
+        userImage.width * imgScale,
+        userImage.height * imgScale
+      );
+
+      ctx.restore();
+
+      if (overlayLoaded) {
+        ctx.drawImage(overlayTemplate, 0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    function zoomIn() {
+      if (!userImage) return;
+
+      const area = getImageArea();
+      const centerX = area.x + area.width / 2;
+      const centerY = area.y + area.height / 2;
+
+      const oldScale = imgScale;
+      imgScale *= 1.08;
+
+      imgX = centerX - (centerX - imgX) * (imgScale / oldScale);
+      imgY = centerY - (centerY - imgY) * (imgScale / oldScale);
+
+      drawCanvas();
+    }
+
+    function zoomOut() {
+      if (!userImage) return;
+
+      const area = getImageArea();
+      const centerX = area.x + area.width / 2;
+      const centerY = area.y + area.height / 2;
+
+      const oldScale = imgScale;
+      imgScale *= 0.92;
+
+      imgX = centerX - (centerX - imgX) * (imgScale / oldScale);
+      imgY = centerY - (centerY - imgY) * (imgScale / oldScale);
+
+      drawCanvas();
+    }
+
+    function resetImage() {
+      if (!userImage) return;
+      fitImageToFrame();
+      drawCanvas();
+    }
+
+    function downloadImage() {
+      canvas.toBlob(function (blob) {
+        if (!blob) {
+          alert("Download failed. Please refresh and try again.");
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = "galaxy-unpacked-output.png";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    }
+
+    function getCanvasPointerPosition(e) {
+      const rect = canvas.getBoundingClientRect();
+
+      let clientX;
+      let clientY;
+
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    function isInsideFrame(pos) {
+      const area = getImageArea();
+
+      return (
+        pos.x >= area.x &&
+        pos.x <= area.x + area.width &&
+        pos.y >= area.y &&
+        pos.y <= area.y + area.height
+      );
+    }
+
+    canvas.addEventListener("mousedown", function (e) {
+      if (!userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      if (isInsideFrame(pos)) {
+        isDragging = true;
+        lastX = pos.x;
+        lastY = pos.y;
+      }
+    });
+
+    canvas.addEventListener("mousemove", function (e) {
+      if (!isDragging || !userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      imgX += pos.x - lastX;
+      imgY += pos.y - lastY;
+
+      lastX = pos.x;
+      lastY = pos.y;
+
+      drawCanvas();
+    });
+
+    canvas.addEventListener("mouseup", function () {
+      isDragging = false;
+    });
+
+    canvas.addEventListener("mouseleave", function () {
+      isDragging = false;
+    });
+
+    canvas.addEventListener("wheel", function (e) {
+      if (!userImage) return;
+
+      e.preventDefault();
+
+      if (e.deltaY < 0) {
+        zoomIn();
+      } else {
+        zoomOut();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener("touchstart", function (e) {
+      if (!userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      if (isInsideFrame(pos)) {
+        isDragging = true;
+        lastX = pos.x;
+        lastY = pos.y;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", function (e) {
+      if (!isDragging || !userImage) return;
+
+      const pos = getCanvasPointerPosition(e);
+
+      imgX += pos.x - lastX;
+      imgY += pos.y - lastY;
+
+      lastX = pos.x;
+      lastY = pos.y;
+
+      drawCanvas();
+      e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", function () {
+      isDragging = false;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Fold8 Template Editor</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --ink: #f8fbff;
+      --muted: #9fb0d9;
+      --panel: #071026;
+      --panel-2: #0d1732;
+      --line: rgba(175, 207, 255, 0.22);
+      --accent: #67e8f9;
+      --accent-2: #e879f9;
+      --danger: #ff7a90;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 78% 8%, rgba(103, 232, 249, 0.18), transparent 24%),
+        radial-gradient(circle at 18% 45%, rgba(232, 121, 249, 0.14), transparent 26%),
+        #020617;
+    }
+
+    .page {
+      width: 100%;
+      min-height: 100vh;
+      padding: 18px;
+      display: grid;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .workspace {
+      width: 100%;
+      max-width: 1180px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      background: rgba(7, 16, 38, 0.84);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 34px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .limits {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .layout {
+      display: grid;
+      gap: 18px;
+    }
+
+    .tools {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(7, 16, 38, 0.88);
+    }
+
+    button,
+    .upload-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      background: #121b35;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 14px;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+
+    button:hover,
+    .upload-btn:hover {
+      background: #182443;
+      border-color: rgba(103, 232, 249, 0.42);
+    }
+
+    button:active,
+    .upload-btn:active {
+      transform: translateY(1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .primary {
+      background: linear-gradient(135deg, #155e75, #7e22ce);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .download-btn {
+      grid-column: span 2;
+    }
+
+    .range-wrap {
+      grid-column: span 2;
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(13, 23, 50, 0.88);
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .status {
+      grid-column: span 2;
+      min-height: 38px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(13, 23, 50, 0.72);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .status.error {
+      color: var(--danger);
+      border-color: rgba(255, 122, 144, 0.35);
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      max-width: min(100%, 610px);
+      margin: 0 auto;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(248, 251, 255, 0.06);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.36);
+    }
+
+    canvas {
+      width: 100%;
+      display: block;
+      border-radius: 6px;
+      background: #030712;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    @media (min-width: 880px) {
+      .page {
+        padding: 28px;
+      }
+
+      .layout {
+        grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+        align-items: start;
+      }
+
+      .tools {
+        position: sticky;
+        top: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <section class="workspace">
+      <header class="topbar">
+        <h1>Fold8 Template Editor</h1>
+        <div class="limits">Images up to 10 MB. Videos up to 40 MB or 30 seconds.</div>
+      </header>
+
+      <div class="layout">
+        <div class="tools">
+          <label class="upload-btn primary" for="upload">Upload Media</label>
+          <input id="upload" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden />
+
+          <button id="zoom-in" type="button">Zoom +</button>
+          <button id="zoom-out" type="button">Zoom -</button>
+          <button id="reset" type="button">Reset</button>
+          <button id="clear" type="button">Clear</button>
+
+          <div class="range-wrap">
+            <div class="range-row">
+              <span>Scale</span>
+              <span id="zoom-value">100%</span>
+            </div>
+            <input id="zoom-range" type="range" min="100" max="300" value="100" step="1" disabled />
+          </div>
+
+          <button class="download-btn primary" id="download" type="button" disabled>Download</button>
+          <div class="status" id="status">Choose a photo or short video.</div>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="canvas" width="1024" height="1536"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const uploadInput = document.getElementById("upload");
+    const statusEl = document.getElementById("status");
+    const downloadButton = document.getElementById("download");
+    const zoomRange = document.getElementById("zoom-range");
+    const zoomValue = document.getElementById("zoom-value");
+
+    const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+    const VIDEO_MAX_BYTES = 40 * 1024 * 1024;
+    const VIDEO_MAX_SECONDS = 30;
+    const EXPORT_FPS = 24;
+    const EXPORT_BITRATE = 2400000;
+
+    const template = new Image();
+    template.src = "./fold8-template-1.jpeg";
+
+    const frameRatio = {
+      x: 0.220,
+      y: 0.223,
+      width: 0.565,
+      height: 0.276,
+      radius: 0.030
+    };
+
+    let templateReady = false;
+    let mediaType = "";
+    let mediaEl = null;
+    let mediaUrl = "";
+    let mediaWidth = 0;
+    let mediaHeight = 0;
+    let mediaX = 0;
+    let mediaY = 0;
+    let mediaScale = 1;
+    let minMediaScale = 1;
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    let previewFrame = 0;
+    let isExporting = false;
+
+    function setStatus(message, isError) {
+      statusEl.textContent = message;
+      statusEl.classList.toggle("error", Boolean(isError));
+    }
+
+    function getFrame() {
+      return {
+        x: canvas.width * frameRatio.x,
+        y: canvas.height * frameRatio.y,
+        width: canvas.width * frameRatio.width,
+        height: canvas.height * frameRatio.height,
+        radius: canvas.width * frameRatio.radius
+      };
+    }
+
+    function getMediaArea() {
+      const frame = getFrame();
+      const inset = canvas.width * 0.0155;
+
+      return {
+        x: frame.x + inset,
+        y: frame.y + inset,
+        width: frame.width - inset * 2,
+        height: frame.height - inset * 2,
+        radius: frame.radius * 0.72
+      };
+    }
+
+    function roundedRectPath(context, x, y, width, height, radius) {
+      context.beginPath();
+      context.moveTo(x + radius, y);
+      context.lineTo(x + width - radius, y);
+      context.quadraticCurveTo(x + width, y, x + width, y + radius);
+      context.lineTo(x + width, y + height - radius);
+      context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      context.lineTo(x + radius, y + height);
+      context.quadraticCurveTo(x, y + height, x, y + height - radius);
+      context.lineTo(x, y + radius);
+      context.quadraticCurveTo(x, y, x + radius, y);
+      context.closePath();
+    }
+
+    function getMinScale() {
+      const area = getMediaArea();
+      return Math.max(area.width / mediaWidth, area.height / mediaHeight);
+    }
+
+    function constrainMediaPosition() {
+      const area = getMediaArea();
+      const drawWidth = mediaWidth * mediaScale;
+      const drawHeight = mediaHeight * mediaScale;
+
+      if (drawWidth <= area.width) {
+        mediaX = area.x + (area.width - drawWidth) / 2;
+      } else {
+        mediaX = Math.min(area.x, Math.max(area.x + area.width - drawWidth, mediaX));
+      }
+
+      if (drawHeight <= area.height) {
+        mediaY = area.y + (area.height - drawHeight) / 2;
+      } else {
+        mediaY = Math.min(area.y, Math.max(area.y + area.height - drawHeight, mediaY));
+      }
+    }
+
+    function syncZoomUi() {
+      const percentage = Math.round((mediaScale / minMediaScale) * 100);
+      zoomRange.value = String(Math.min(300, Math.max(100, percentage)));
+      zoomValue.textContent = percentage + "%";
+    }
+
+    function fitMediaToFrame() {
+      if (!mediaEl || !mediaWidth || !mediaHeight) return;
+
+      const area = getMediaArea();
+      minMediaScale = getMinScale();
+      mediaScale = minMediaScale;
+      mediaX = area.x + (area.width - mediaWidth * mediaScale) / 2;
+      mediaY = area.y + (area.height - mediaHeight * mediaScale) / 2;
+      zoomRange.disabled = false;
+      syncZoomUi();
+    }
+
+    function drawUploadMark() {
+      const area = getMediaArea();
+      const cx = area.x + area.width / 2;
+      const cy = area.y + area.height / 2;
+      const size = canvas.width * 0.054;
+
+      ctx.save();
+      ctx.fillStyle = "rgba(103, 232, 249, 0.16)";
+      ctx.strokeStyle = "rgba(103, 232, 249, 0.88)";
+      ctx.lineWidth = canvas.width * 0.003;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.76, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - size * 0.36);
+      ctx.lineTo(cx, cy + size * 0.30);
+      ctx.moveTo(cx - size * 0.32, cy - size * 0.03);
+      ctx.lineTo(cx, cy - size * 0.36);
+      ctx.lineTo(cx + size * 0.32, cy - size * 0.03);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawFrameFinish() {
+      const frame = getFrame();
+
+      ctx.save();
+      roundedRectPath(ctx, frame.x, frame.y, frame.width, frame.height, frame.radius);
+      ctx.shadowColor = "rgba(191, 92, 255, 0.85)";
+      ctx.shadowBlur = canvas.width * 0.012;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+      ctx.lineWidth = canvas.width * 0.0032;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (templateReady) {
+        ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+      }
+
+      if (!mediaEl) {
+        drawUploadMark();
+        drawFrameFinish();
+        return;
+      }
+
+      const area = getMediaArea();
+      ctx.save();
+      roundedRectPath(ctx, area.x, area.y, area.width, area.height, area.radius);
+      ctx.clip();
+
+      if (mediaType === "image" || mediaEl.readyState >= 2) {
+        ctx.drawImage(
+          mediaEl,
+          mediaX,
+          mediaY,
+          mediaWidth * mediaScale,
+          mediaHeight * mediaScale
+        );
+      }
+
+      ctx.restore();
+      drawFrameFinish();
+    }
+
+    function startPreviewLoop() {
+      cancelAnimationFrame(previewFrame);
+
+      function tick() {
+        drawCanvas();
+        previewFrame = requestAnimationFrame(tick);
+      }
+
+      if (mediaType === "video") {
+        previewFrame = requestAnimationFrame(tick);
+      }
+    }
+
+    function stopPreviewLoop() {
+      cancelAnimationFrame(previewFrame);
+      previewFrame = 0;
+    }
+
+    function cleanupMedia() {
+      stopPreviewLoop();
+
+      if (mediaEl && mediaType === "video") {
+        mediaEl.pause();
+        mediaEl.removeAttribute("src");
+        mediaEl.load();
+      }
+
+      if (mediaUrl) {
+        URL.revokeObjectURL(mediaUrl);
+      }
+
+      mediaType = "";
+      mediaEl = null;
+      mediaUrl = "";
+      mediaWidth = 0;
+      mediaHeight = 0;
+      mediaScale = 1;
+      minMediaScale = 1;
+      zoomRange.value = "100";
+      zoomValue.textContent = "100%";
+      zoomRange.disabled = true;
+      downloadButton.disabled = true;
+      downloadButton.textContent = "Download";
+    }
+
+    function loadImage(file) {
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      image.onload = function () {
+        cleanupMedia();
+        mediaUrl = objectUrl;
+        mediaType = "image";
+        mediaEl = image;
+        mediaWidth = image.naturalWidth;
+        mediaHeight = image.naturalHeight;
+        fitMediaToFrame();
+        drawCanvas();
+        downloadButton.disabled = false;
+        downloadButton.textContent = "Download JPG";
+        setStatus("Photo ready.");
+      };
+
+      image.onerror = function () {
+        URL.revokeObjectURL(objectUrl);
+        setStatus("Could not load that image.", true);
+      };
+
+      image.src = objectUrl;
+    }
+
+    function loadVideo(file) {
+      const video = document.createElement("video");
+      const objectUrl = URL.createObjectURL(file);
+
+      video.preload = "auto";
+      video.playsInline = true;
+      video.muted = true;
+      video.loop = true;
+      video.src = objectUrl;
+
+      video.onloadedmetadata = function () {
+        if (!Number.isFinite(video.duration) || video.duration <= 0) {
+          URL.revokeObjectURL(objectUrl);
+          setStatus("Could not read that video duration.", true);
+          return;
+        }
+
+        if (video.duration > VIDEO_MAX_SECONDS) {
+          URL.revokeObjectURL(objectUrl);
+          setStatus("Video is longer than 30 seconds.", true);
+          return;
+        }
+
+        cleanupMedia();
+        mediaUrl = objectUrl;
+        mediaType = "video";
+        mediaEl = video;
+        mediaWidth = video.videoWidth;
+        mediaHeight = video.videoHeight;
+        fitMediaToFrame();
+        drawCanvas();
+        startPreviewLoop();
+        downloadButton.disabled = false;
+        downloadButton.textContent = "Download Video";
+        setStatus("Video ready.");
+
+        video.play().catch(function () {
+          setStatus("Video ready. Tap the preview once if playback is paused.");
+        });
+      };
+
+      video.onerror = function () {
+        URL.revokeObjectURL(objectUrl);
+        setStatus("Could not load that video.", true);
+      };
+    }
+
+    function handleUpload(file) {
+      if (!file) return;
+
+      if (file.type.startsWith("image/")) {
+        if (file.size > IMAGE_MAX_BYTES) {
+          setStatus("Image is larger than 10 MB.", true);
+          return;
+        }
+
+        loadImage(file);
+        return;
+      }
+
+      if (file.type.startsWith("video/")) {
+        if (file.size > VIDEO_MAX_BYTES) {
+          setStatus("Video is larger than 40 MB.", true);
+          return;
+        }
+
+        loadVideo(file);
+        return;
+      }
+
+      setStatus("Choose an image, MP4, WebM, or MOV file.", true);
+    }
+
+    function zoomBy(multiplier) {
+      if (!mediaEl) return;
+
+      const area = getMediaArea();
+      const centerX = area.x + area.width / 2;
+      const centerY = area.y + area.height / 2;
+      const oldScale = mediaScale;
+      const nextScale = Math.min(minMediaScale * 3, Math.max(minMediaScale, mediaScale * multiplier));
+
+      mediaScale = nextScale;
+      mediaX = centerX - (centerX - mediaX) * (mediaScale / oldScale);
+      mediaY = centerY - (centerY - mediaY) * (mediaScale / oldScale);
+      constrainMediaPosition();
+      syncZoomUi();
+      drawCanvas();
+    }
+
+    function setZoomFromRange() {
+      if (!mediaEl) return;
+
+      const area = getMediaArea();
+      const centerX = area.x + area.width / 2;
+      const centerY = area.y + area.height / 2;
+      const oldScale = mediaScale;
+
+      mediaScale = minMediaScale * (Number(zoomRange.value) / 100);
+      mediaX = centerX - (centerX - mediaX) * (mediaScale / oldScale);
+      mediaY = centerY - (centerY - mediaY) * (mediaScale / oldScale);
+      constrainMediaPosition();
+      syncZoomUi();
+      drawCanvas();
+    }
+
+    function getCanvasPointerPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      const source = event.touches && event.touches.length ? event.touches[0] : event;
+
+      return {
+        x: (source.clientX - rect.left) * (canvas.width / rect.width),
+        y: (source.clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    function isInsideFrame(pos) {
+      const frame = getFrame();
+
+      return (
+        pos.x >= frame.x &&
+        pos.x <= frame.x + frame.width &&
+        pos.y >= frame.y &&
+        pos.y <= frame.y + frame.height
+      );
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadImage() {
+      drawCanvas();
+      canvas.toBlob(function (blob) {
+        if (!blob) {
+          setStatus("Download failed. Refresh and try again.", true);
+          return;
+        }
+
+        downloadBlob(blob, "fold8-template-output.jpg");
+        setStatus("Photo downloaded.");
+      }, "image/jpeg", 0.92);
+    }
+
+    function getRecorderMimeType() {
+      const types = [
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm",
+        "video/mp4;codecs=h264",
+        "video/mp4"
+      ];
+
+      return types.find(function (type) {
+        return window.MediaRecorder && MediaRecorder.isTypeSupported(type);
+      }) || "";
+    }
+
+    function seekVideo(time) {
+      return new Promise(function (resolve) {
+        let resolved = false;
+
+        function done() {
+          if (resolved) return;
+          resolved = true;
+          videoRemove();
+          resolve();
+        }
+
+        function videoRemove() {
+          mediaEl.removeEventListener("seeked", done);
+        }
+
+        mediaEl.addEventListener("seeked", done, { once: true });
+        mediaEl.currentTime = time;
+        window.setTimeout(done, 500);
+      });
+    }
+
+    async function downloadVideo() {
+      if (!window.MediaRecorder || !canvas.captureStream) {
+        setStatus("This browser cannot export video from canvas.", true);
+        return;
+      }
+
+      const mimeType = getRecorderMimeType();
+      if (!mimeType) {
+        setStatus("This browser does not support video recording.", true);
+        return;
+      }
+
+      isExporting = true;
+      downloadButton.disabled = true;
+      uploadInput.disabled = true;
+      setStatus("Preparing video export...");
+
+      const wasLooping = mediaEl.loop;
+      mediaEl.pause();
+      mediaEl.loop = false;
+      mediaEl.muted = true;
+      await seekVideo(0);
+      drawCanvas();
+
+      const stream = canvas.captureStream(EXPORT_FPS);
+      const chunks = [];
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: EXPORT_BITRATE
+      });
+
+      const extension = mimeType.includes("mp4") ? "mp4" : "webm";
+
+      await new Promise(function (resolve, reject) {
+        let stopped = false;
+        const stopAfterMs = Math.min(mediaEl.duration, VIDEO_MAX_SECONDS) * 1000 + 350;
+
+        function finish() {
+          if (stopped) return;
+          stopped = true;
+          if (recorder.state !== "inactive") {
+            recorder.stop();
+          }
+        }
+
+        recorder.ondataavailable = function (event) {
+          if (event.data && event.data.size) {
+            chunks.push(event.data);
+          }
+        };
+
+        recorder.onerror = function () {
+          reject(new Error("recording failed"));
+        };
+
+        recorder.onstop = function () {
+          resolve();
+        };
+
+        mediaEl.onended = finish;
+        recorder.start(1000);
+        mediaEl.play().catch(reject);
+        window.setTimeout(finish, stopAfterMs);
+      }).then(function () {
+        const blob = new Blob(chunks, { type: mimeType });
+        downloadBlob(blob, "fold8-template-video." + extension);
+        setStatus("Video downloaded.");
+      }).catch(function () {
+        setStatus("Video export failed. Try a shorter MP4 or WebM.", true);
+      });
+
+      mediaEl.onended = null;
+      mediaEl.loop = wasLooping;
+      mediaEl.currentTime = 0;
+      mediaEl.play().catch(function () {});
+      isExporting = false;
+      uploadInput.disabled = false;
+      downloadButton.disabled = false;
+    }
+
+    function handleDownload() {
+      if (!mediaEl || isExporting) return;
+
+      if (mediaType === "video") {
+        downloadVideo();
+      } else {
+        downloadImage();
+      }
+    }
+
+    template.onload = function () {
+      templateReady = true;
+      drawCanvas();
+    };
+
+    template.onerror = function () {
+      setStatus("fold8-template-1.jpeg was not found.", true);
+    };
+
+    uploadInput.addEventListener("change", function (event) {
+      handleUpload(event.target.files[0]);
+      event.target.value = "";
+    });
+
+    document.getElementById("zoom-in").addEventListener("click", function () {
+      zoomBy(1.08);
+    });
+
+    document.getElementById("zoom-out").addEventListener("click", function () {
+      zoomBy(0.92);
+    });
+
+    document.getElementById("reset").addEventListener("click", function () {
+      fitMediaToFrame();
+      drawCanvas();
+    });
+
+    document.getElementById("clear").addEventListener("click", function () {
+      cleanupMedia();
+      drawCanvas();
+      setStatus("Choose a photo or short video.");
+    });
+
+    downloadButton.addEventListener("click", handleDownload);
+    zoomRange.addEventListener("input", setZoomFromRange);
+
+    canvas.addEventListener("mousedown", function (event) {
+      if (!mediaEl) return;
+      const pos = getCanvasPointerPosition(event);
+
+      if (isInsideFrame(pos)) {
+        isDragging = true;
+        lastX = pos.x;
+        lastY = pos.y;
+      }
+    });
+
+    canvas.addEventListener("mousemove", function (event) {
+      if (!isDragging || !mediaEl) return;
+      const pos = getCanvasPointerPosition(event);
+
+      mediaX += pos.x - lastX;
+      mediaY += pos.y - lastY;
+      lastX = pos.x;
+      lastY = pos.y;
+      constrainMediaPosition();
+      drawCanvas();
+    });
+
+    canvas.addEventListener("mouseup", function () {
+      isDragging = false;
+    });
+
+    canvas.addEventListener("mouseleave", function () {
+      isDragging = false;
+    });
+
+    canvas.addEventListener("wheel", function (event) {
+      if (!mediaEl) return;
+      event.preventDefault();
+      zoomBy(event.deltaY < 0 ? 1.06 : 0.94);
+    }, { passive: false });
+
+    canvas.addEventListener("touchstart", function (event) {
+      if (!mediaEl) return;
+      const pos = getCanvasPointerPosition(event);
+
+      if (isInsideFrame(pos)) {
+        isDragging = true;
+        lastX = pos.x;
+        lastY = pos.y;
+        event.preventDefault();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", function (event) {
+      if (!isDragging || !mediaEl) return;
+      const pos = getCanvasPointerPosition(event);
+
+      mediaX += pos.x - lastX;
+      mediaY += pos.y - lastY;
+      lastX = pos.x;
+      lastY = pos.y;
+      constrainMediaPosition();
+      drawCanvas();
+      event.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", function () {
+      isDragging = false;
+    });
+
+    canvas.addEventListener("click", function () {
+      if (mediaType === "video" && mediaEl.paused && !isExporting) {
+        mediaEl.play().catch(function () {});
+      }
+    });
+  </script>
+</body>
+</html>

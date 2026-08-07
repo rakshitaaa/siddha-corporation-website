@@ -301,6 +301,7 @@
     let isExporting = false;
     let exportMimeType = "";
     let soundEnabled = true;
+    let loadId = 0;
 
     function setStatus(message, isError) {
       statusEl.textContent = message;
@@ -540,11 +541,16 @@
       downloadButton.textContent = "Download";
     }
 
-    function loadImage(file) {
+    function loadImage(file, currentLoadId) {
       const image = new Image();
       const objectUrl = URL.createObjectURL(file);
 
       image.onload = function () {
+        if (currentLoadId !== loadId) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+
         cleanupMedia();
         mediaUrl = objectUrl;
         mediaType = "image";
@@ -559,25 +565,141 @@
       };
 
       image.onerror = function () {
+        if (currentLoadId !== loadId) return;
         URL.revokeObjectURL(objectUrl);
-        setStatus("Could not load that image.", true);
+        setStatus("Could not load that image. Try a JPG or PNG under 10 MB.", true);
       };
 
       image.src = objectUrl;
     }
 
-    function loadVideo(file) {
+    function getVideoErrorMessage(video, file) {
+      if (!video.error) {
+        return "Could not load that video. Try an MP4 under 30 seconds.";
+      }
+
+      if (video.error.code === 4) {
+        return "This phone/browser cannot read this video format. Try MP4/H.264.";
+      }
+
+      if (video.error.code === 3) {
+        return "This video could not be decoded. Try exporting it as a smaller MP4.";
+      }
+
+      if (video.error.code === 2) {
+        return "The video could not be read from this device. Please choose it again.";
+      }
+
+      if (file && file.type === "video/quicktime") {
+        return "MOV videos may not work on every phone. Try MP4/H.264.";
+      }
+
+      return "Could not load that video. Try an MP4 under 30 seconds.";
+    }
+
+    function waitForVideoFrame(video) {
+      return new Promise(function (resolve, reject) {
+        let settled = false;
+        let timer = 0;
+
+        function finish() {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          resolve();
+        }
+
+        function fail() {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error("video frame unavailable"));
+        }
+
+        function cleanup() {
+          window.clearTimeout(timer);
+          video.removeEventListener("loadeddata", finish);
+          video.removeEventListener("canplay", finish);
+          video.removeEventListener("error", fail);
+        }
+
+        if (video.readyState >= 2) {
+          finish();
+          return;
+        }
+
+        timer = window.setTimeout(fail, 2500);
+        video.addEventListener("loadeddata", finish, { once: true });
+        video.addEventListener("canplay", finish, { once: true });
+        video.addEventListener("error", fail, { once: true });
+      });
+    }
+
+    function primeVideoFrame(video) {
+      return new Promise(function (resolve, reject) {
+        let settled = false;
+        let timer = 0;
+
+        function finish() {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          video.pause();
+          resolve();
+        }
+
+        function fail() {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          video.pause();
+          reject(new Error("video autoplay prime failed"));
+        }
+
+        function cleanup() {
+          window.clearTimeout(timer);
+          video.removeEventListener("loadeddata", finish);
+          video.removeEventListener("canplay", finish);
+          video.removeEventListener("playing", finish);
+          video.removeEventListener("timeupdate", finish);
+          video.removeEventListener("error", fail);
+        }
+
+        if (video.readyState >= 2) {
+          finish();
+          return;
+        }
+
+        timer = window.setTimeout(fail, 5000);
+        video.addEventListener("loadeddata", finish, { once: true });
+        video.addEventListener("canplay", finish, { once: true });
+        video.addEventListener("playing", finish, { once: true });
+        video.addEventListener("timeupdate", finish, { once: true });
+        video.addEventListener("error", fail, { once: true });
+
+        video.muted = true;
+        video.play().catch(fail);
+      });
+    }
+
+    function loadVideo(file, currentLoadId) {
       const video = document.createElement("video");
       const objectUrl = URL.createObjectURL(file);
 
+      setStatus("Loading video...");
       video.preload = "auto";
       video.playsInline = true;
-      video.muted = false;
+      video.muted = true;
       video.volume = 1;
       video.loop = true;
       video.src = objectUrl;
 
-      video.onloadedmetadata = function () {
+      video.onloadedmetadata = async function () {
+        if (currentLoadId !== loadId) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+
         if (!Number.isFinite(video.duration) || video.duration <= 0) {
           URL.revokeObjectURL(objectUrl);
           setStatus("Could not read that video duration.", true);
@@ -590,6 +712,32 @@
           return;
         }
 
+        if (!video.videoWidth || !video.videoHeight) {
+          URL.revokeObjectURL(objectUrl);
+          setStatus("Could not read this video's size. Try another MP4.", true);
+          return;
+        }
+
+        setStatus("Preparing video preview...");
+
+        try {
+          await waitForVideoFrame(video);
+        } catch (error) {
+          try {
+            await primeVideoFrame(video);
+          } catch (primeError) {
+            if (currentLoadId !== loadId) return;
+            URL.revokeObjectURL(objectUrl);
+            setStatus("Video opened but no preview frame was available. Try MP4/H.264.", true);
+            return;
+          }
+        }
+
+        if (currentLoadId !== loadId) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+
         cleanupMedia();
         mediaUrl = objectUrl;
         mediaType = "video";
@@ -598,6 +746,7 @@
         mediaHeight = video.videoHeight;
         exportMimeType = getRecorderMimeType();
         soundEnabled = true;
+        video.muted = false;
         fitMediaToFrame();
         drawCanvas();
         startPreviewLoop();
@@ -605,39 +754,45 @@
         downloadButton.textContent = exportMimeType ? "Download " + getExportExtension().toUpperCase() : "Video Export Unavailable";
         refreshVideoButtons();
         setStatus(exportMimeType && getExportExtension() === "mp4" ? "Video ready. MP4 export is supported here." : "Video ready. This browser can only export WebM.");
-
-        video.play().catch(function () {
-          setStatus("Video ready. Press Play Video if playback is paused.");
-          refreshVideoButtons();
-        });
       };
 
       video.onerror = function () {
+        if (currentLoadId !== loadId) return;
         URL.revokeObjectURL(objectUrl);
-        setStatus("Could not load that video.", true);
+        setStatus(getVideoErrorMessage(video, file), true);
       };
     }
 
     function handleUpload(file) {
       if (!file) return;
 
-      if (file.type.startsWith("image/")) {
+      const currentLoadId = loadId + 1;
+      loadId = currentLoadId;
+      cleanupMedia();
+      drawCanvas();
+
+      const fileName = file.name ? file.name.toLowerCase() : "";
+      const isImageFile = file.type.startsWith("image/") || /\.(jpe?g|png|webp)$/i.test(fileName);
+      const isVideoFile = file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(fileName);
+
+      if (isImageFile) {
         if (file.size > IMAGE_MAX_BYTES) {
           setStatus("Image is larger than 10 MB.", true);
           return;
         }
 
-        loadImage(file);
+        setStatus("Loading photo...");
+        loadImage(file, currentLoadId);
         return;
       }
 
-      if (file.type.startsWith("video/")) {
+      if (isVideoFile) {
         if (file.size > VIDEO_MAX_BYTES) {
           setStatus("Video is larger than 40 MB.", true);
           return;
         }
 
-        loadVideo(file);
+        loadVideo(file, currentLoadId);
         return;
       }
 

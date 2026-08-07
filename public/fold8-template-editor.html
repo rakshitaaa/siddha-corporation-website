@@ -235,6 +235,7 @@
           <button id="reset" type="button">Reset</button>
           <button id="clear" type="button">Clear</button>
           <button id="play-video" type="button" disabled>Play Video</button>
+          <button id="sound-video" type="button" disabled>Sound On</button>
 
           <div class="range-wrap">
             <div class="range-row">
@@ -262,6 +263,7 @@
     const statusEl = document.getElementById("status");
     const downloadButton = document.getElementById("download");
     const playVideoButton = document.getElementById("play-video");
+    const soundVideoButton = document.getElementById("sound-video");
     const zoomRange = document.getElementById("zoom-range");
     const zoomValue = document.getElementById("zoom-value");
 
@@ -298,6 +300,7 @@
     let previewFrame = 0;
     let isExporting = false;
     let exportMimeType = "";
+    let soundEnabled = true;
 
     function setStatus(message, isError) {
       statusEl.textContent = message;
@@ -393,11 +396,15 @@
       if (mediaType !== "video" || !mediaEl) {
         playVideoButton.disabled = true;
         playVideoButton.textContent = "Play Video";
+        soundVideoButton.disabled = true;
+        soundVideoButton.textContent = "Sound On";
         return;
       }
 
       playVideoButton.disabled = false;
       playVideoButton.textContent = mediaEl.paused ? "Play Video" : "Pause Video";
+      soundVideoButton.disabled = false;
+      soundVideoButton.textContent = soundEnabled ? "Sound On" : "Sound Off";
     }
 
     function fitMediaToFrame() {
@@ -521,11 +528,14 @@
       mediaScale = 1;
       minMediaScale = 1;
       exportMimeType = "";
+      soundEnabled = true;
       zoomRange.value = "100";
       zoomValue.textContent = "100%";
       zoomRange.disabled = true;
       playVideoButton.disabled = true;
       playVideoButton.textContent = "Play Video";
+      soundVideoButton.disabled = true;
+      soundVideoButton.textContent = "Sound On";
       downloadButton.disabled = true;
       downloadButton.textContent = "Download";
     }
@@ -562,7 +572,8 @@
 
       video.preload = "auto";
       video.playsInline = true;
-      video.muted = true;
+      video.muted = false;
+      video.volume = 1;
       video.loop = true;
       video.src = objectUrl;
 
@@ -586,6 +597,7 @@
         mediaWidth = video.videoWidth;
         mediaHeight = video.videoHeight;
         exportMimeType = getRecorderMimeType();
+        soundEnabled = true;
         fitMediaToFrame();
         drawCanvas();
         startPreviewLoop();
@@ -595,7 +607,7 @@
         setStatus(exportMimeType && getExportExtension() === "mp4" ? "Video ready. MP4 export is supported here." : "Video ready. This browser can only export WebM.");
 
         video.play().catch(function () {
-          setStatus("Video ready. Tap the preview once if playback is paused.");
+          setStatus("Video ready. Press Play Video if playback is paused.");
           refreshVideoButtons();
         });
       };
@@ -732,6 +744,19 @@
       });
     }
 
+    function getVideoAudioTracks() {
+      if (!mediaEl || mediaType !== "video") return [];
+
+      const capture = mediaEl.captureStream || mediaEl.mozCaptureStream;
+      if (!capture) return [];
+
+      try {
+        return capture.call(mediaEl).getAudioTracks();
+      } catch (error) {
+        return [];
+      }
+    }
+
     async function downloadVideo() {
       if (!window.MediaRecorder || !canvas.captureStream) {
         setStatus("This browser cannot export video from canvas.", true);
@@ -750,13 +775,19 @@
       setStatus("Preparing video export...");
 
       const wasLooping = mediaEl.loop;
+      const wasMuted = mediaEl.muted;
       mediaEl.pause();
       mediaEl.loop = false;
-      mediaEl.muted = true;
+      mediaEl.muted = !soundEnabled;
       await seekVideo(0);
       drawCanvas();
 
-      const stream = canvas.captureStream(EXPORT_FPS);
+      const canvasStream = canvas.captureStream(EXPORT_FPS);
+      const audioTracks = soundEnabled ? getVideoAudioTracks() : [];
+      const stream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...audioTracks
+      ]);
       const chunks = [];
       const recorder = new MediaRecorder(stream, {
         mimeType,
@@ -798,13 +829,20 @@
       }).then(function () {
         const blob = new Blob(chunks, { type: mimeType });
         downloadBlob(blob, "fold8-template-video." + extension);
-        setStatus(extension === "mp4" ? "MP4 video downloaded." : "WebM video downloaded. Some apps may not share WebM.");
+        if (audioTracks.length) {
+          setStatus(extension === "mp4" ? "MP4 video with sound downloaded." : "WebM video with sound downloaded. Some apps may not share WebM.");
+        } else if (soundEnabled) {
+          setStatus("Video downloaded, but this browser did not allow audio export.");
+        } else {
+          setStatus("Video downloaded without sound.");
+        }
       }).catch(function () {
         setStatus("Video export failed. Try a shorter MP4 or WebM.", true);
       });
 
       mediaEl.onended = null;
       mediaEl.loop = wasLooping;
+      mediaEl.muted = wasMuted;
       mediaEl.currentTime = 0;
       mediaEl.play().catch(function () {});
       isExporting = false;
@@ -864,6 +902,7 @@
       if (mediaType !== "video" || !mediaEl || isExporting) return;
 
       if (mediaEl.paused) {
+        mediaEl.muted = !soundEnabled;
         mediaEl.play().then(refreshVideoButtons).catch(function () {
           setStatus("This phone blocked video playback. Try a smaller MP4.", true);
           refreshVideoButtons();
@@ -872,6 +911,21 @@
         mediaEl.pause();
         refreshVideoButtons();
       }
+    });
+
+    soundVideoButton.addEventListener("click", function () {
+      if (mediaType !== "video" || !mediaEl || isExporting) return;
+
+      soundEnabled = !soundEnabled;
+      mediaEl.muted = !soundEnabled;
+
+      if (soundEnabled && mediaEl.paused) {
+        mediaEl.play().catch(function () {
+          setStatus("Press Play Video to hear sound on this phone.");
+        });
+      }
+
+      refreshVideoButtons();
     });
 
     canvas.addEventListener("mousedown", function (event) {
@@ -942,6 +996,7 @@
 
     canvas.addEventListener("click", function () {
       if (mediaType === "video" && mediaEl.paused && !isExporting) {
+        mediaEl.muted = !soundEnabled;
         mediaEl.play().then(refreshVideoButtons).catch(function () {});
       }
     });
